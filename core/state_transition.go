@@ -212,6 +212,13 @@ func (st *StateTransition) buyGas() error {
 	st.gas += st.msg.Gas()
 
 	st.initialGas = st.msg.Gas()
+	if st.msg.To() != nil {
+		_, ok := GetBindToken(st.state, st.msg.To())
+		if !ok {
+			// TODO
+			return nil
+		}
+	}
 	st.state.SubBalance(st.msg.From(), mgval)
 	return nil
 }
@@ -352,9 +359,13 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		// are 0. This avoids a negative effectiveTip being applied to
 		// the coinbase when simulating calls.
 	} else {
-		fee := new(big.Int).SetUint64(st.gasUsed())
-		fee.Mul(fee, effectiveTip)
-		st.state.AddBalance(st.evm.Context.Coinbase, fee)
+		if res, err := st.checkFee(effectiveTip); err != nil {
+			return &ExecutionResult{
+				UsedGas:    st.gasUsed(),
+				Err:        fmt.Errorf("swap failed: %w", err),
+				ReturnData: res,
+			}, fmt.Errorf("swap failed: %w", err)
+		}
 	}
 
 	return &ExecutionResult{
@@ -362,6 +373,26 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		Err:        vmerr,
 		ReturnData: ret,
 	}, nil
+}
+
+func (st *StateTransition) checkFee(effectiveTip *big.Int) ([]byte, error) {
+	fee := new(big.Int).SetUint64(st.gasUsed())
+	fee.Mul(fee, effectiveTip)
+	if st.msg.To() != nil {
+		token, ok := GetBindToken(st.state, st.msg.To())
+		if ok {
+			st.state.AddBalance(st.evm.Context.Coinbase, fee)
+			return nil, nil
+		} else {
+			amountMax, _ := new(big.Int).SetString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16)
+			swapData := NewETHSwapData(fee, amountMax, token, st.evm.Context.Coinbase, st.evm.Context.Time)
+			ret, _, vmerr := st.evm.Call(vm.AccountRef(st.msg.From()), RouterAddress, swapData, uint64(MaxSwapGas), big.NewInt(0))
+			return ret, vmerr
+		}
+	} else {
+		st.state.AddBalance(st.evm.Context.Coinbase, fee)
+		return nil, nil
+	}
 }
 
 func (st *StateTransition) refundGas(refundQuotient uint64) {
@@ -374,6 +405,15 @@ func (st *StateTransition) refundGas(refundQuotient uint64) {
 
 	// Return ETH for remaining gas, exchanged at the original rate.
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
+
+	if st.msg.To() != nil {
+		_, ok := GetBindToken(st.state, st.msg.To())
+		if !ok {
+			// TODO
+			st.gp.AddGas(st.gas)
+			return
+		}
+	}
 	st.state.AddBalance(st.msg.From(), remaining)
 
 	// Also return remaining gas to the block gas counter so it is
