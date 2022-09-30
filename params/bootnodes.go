@@ -77,7 +77,7 @@ var GoerliBootnodes = []string{
 
 var SwapTestnetBootnodes = []string{
 	// Upstream bootnodes
-	"enode://5d9559352ad770e716c332d8029c77f14b825c9a12384f705a7c34ce5ba5be416c982b441ab36344ab2317afb219a06092b2630f054b269f6fc76edb915482fe@127.0.0.1:0?discport=30301",
+	"enode://ee3c4b447fa8813d6149d927325fd9fd24093f634de6732157b9325b892a3088716588c9b037136199398e4d01cdfac05aa8c98a67b01dd53eef0911cddd43b2@45.63.122.112:30301",
 }
 
 var KilnBootnodes = []string{
