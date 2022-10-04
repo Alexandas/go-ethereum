@@ -20,7 +20,7 @@ func GetBindToken(st State, c *common.Address) (common.Address, bool) {
 	bind := st.GetState(GasTokenBinderAddress, storageHash)
 	addressZero := common.Address{}
 	b := common.BytesToAddress(bind[:])
-	return b, bytes.Equal(b[:], addressZero[:])
+	return b, !bytes.Equal(b[:], addressZero[:])
 }
 
 func NewETHSwapData(amountOut *big.Int, amountInMax *big.Int, token common.Address, to common.Address, deadline *big.Int) (data []byte) {

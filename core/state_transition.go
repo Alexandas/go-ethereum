@@ -203,22 +203,32 @@ func (st *StateTransition) buyGas() error {
 		balanceCheck = balanceCheck.Mul(balanceCheck, st.gasFeeCap)
 		balanceCheck.Add(balanceCheck, st.value)
 	}
-	if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
-		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+
+	hasGasToken := false
+	if st.msg.To() != nil {
+		_, ok := GetBindToken(st.state, st.msg.To())
+		if ok {
+			hasGasToken = true
+		}
 	}
+	if !hasGasToken {
+		if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
+			return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+		}
+	} else {
+		// TODO
+	}
+
 	if err := st.gp.SubGas(st.msg.Gas()); err != nil {
 		return err
 	}
 	st.gas += st.msg.Gas()
-
 	st.initialGas = st.msg.Gas()
-	if st.msg.To() != nil {
-		_, ok := GetBindToken(st.state, st.msg.To())
-		if !ok {
-			// TODO
-			return nil
-		}
+
+	if hasGasToken {
+		return nil
 	}
+
 	st.state.SubBalance(st.msg.From(), mgval)
 	return nil
 }
@@ -381,13 +391,13 @@ func (st *StateTransition) checkFee(effectiveTip *big.Int) ([]byte, error) {
 	if st.msg.To() != nil {
 		token, ok := GetBindToken(st.state, st.msg.To())
 		if ok {
-			st.state.AddBalance(st.evm.Context.Coinbase, fee)
-			return nil, nil
-		} else {
 			amountMax, _ := new(big.Int).SetString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16)
 			swapData := NewETHSwapData(fee, amountMax, token, st.evm.Context.Coinbase, st.evm.Context.Time)
 			ret, _, vmerr := st.evm.Call(vm.AccountRef(st.msg.From()), RouterAddress, swapData, uint64(MaxSwapGas), big.NewInt(0))
 			return ret, vmerr
+		} else {
+			st.state.AddBalance(st.evm.Context.Coinbase, fee)
+			return nil, nil
 		}
 	} else {
 		st.state.AddBalance(st.evm.Context.Coinbase, fee)
