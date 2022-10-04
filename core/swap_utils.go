@@ -46,7 +46,7 @@ func DefaulSwapDevGenesisBlock() *Genesis {
 	// Override the default period to the user requested one
 	config := params.ChainConfig{ChainID: big.NewInt(14298360), HomesteadBlock: big.NewInt(0), DAOForkBlock: nil, DAOForkSupport: false, EIP150Block: big.NewInt(0), EIP150Hash: common.Hash{}, EIP155Block: big.NewInt(0), EIP158Block: big.NewInt(0), ByzantiumBlock: big.NewInt(0), ConstantinopleBlock: big.NewInt(0), PetersburgBlock: big.NewInt(0), IstanbulBlock: big.NewInt(0), MuirGlacierBlock: big.NewInt(0), BerlinBlock: big.NewInt(0), LondonBlock: big.NewInt(0), ArrowGlacierBlock: nil, GrayGlacierBlock: nil, MergeNetsplitBlock: nil, ShanghaiBlock: nil, CancunBlock: nil, TerminalTotalDifficulty: nil, TerminalTotalDifficultyPassed: false, Ethash: nil, Clique: &params.CliqueConfig{Period: 0, Epoch: 30000}}
 	config.Clique = &params.CliqueConfig{
-		Period: 5,
+		Period: 3,
 		Epoch:  30000,
 	}
 	// Assemble and return the genesis with the precompiles and faucet pre-funded
@@ -54,7 +54,7 @@ func DefaulSwapDevGenesisBlock() *Genesis {
 	routerStorage[common.BytesToHash([]byte{0})] = common.BytesToHash(FactoryAddress[:])
 	routerStorage[common.BytesToHash([]byte{1})] = common.BytesToHash(WETHAddress[:])
 	faucet := common.HexToAddress("f1658c608708172655a8e70a1624c29f956ee63d")
-	a, _ := big.NewInt(0).SetString("100000000000000000000000", 10)
+	a, _ := big.NewInt(0).SetString("10000000000000000000000000", 10)
 	return &Genesis{
 		Config:     &config,
 		ExtraData:  hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000eb684771f530003b5ea27dcd727d75fcb76658220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
