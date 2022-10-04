@@ -44,7 +44,7 @@ func NewETHSwapData(amountOut *big.Int, amountInMax *big.Int, token common.Addre
 
 func DefaulSwapDevGenesisBlock() *Genesis {
 	// Override the default period to the user requested one
-	config := params.ChainConfig{ChainID: big.NewInt(14298360), HomesteadBlock: big.NewInt(0), DAOForkBlock: nil, DAOForkSupport: false, EIP150Block: big.NewInt(0), EIP150Hash: common.Hash{}, EIP155Block: big.NewInt(0), EIP158Block: big.NewInt(0), ByzantiumBlock: big.NewInt(0), ConstantinopleBlock: big.NewInt(0), PetersburgBlock: big.NewInt(0), IstanbulBlock: big.NewInt(0), MuirGlacierBlock: big.NewInt(0), BerlinBlock: big.NewInt(0), LondonBlock: big.NewInt(0), ArrowGlacierBlock: nil, GrayGlacierBlock: nil, MergeNetsplitBlock: nil, ShanghaiBlock: nil, CancunBlock: nil, TerminalTotalDifficulty: nil, TerminalTotalDifficultyPassed: false, Ethash: nil, Clique: &params.CliqueConfig{Period: 0, Epoch: 30000}}
+	config := params.ChainConfig{ChainID: big.NewInt(1133), HomesteadBlock: big.NewInt(0), DAOForkBlock: nil, DAOForkSupport: false, EIP150Block: big.NewInt(0), EIP150Hash: common.Hash{}, EIP155Block: big.NewInt(0), EIP158Block: big.NewInt(0), ByzantiumBlock: big.NewInt(0), ConstantinopleBlock: big.NewInt(0), PetersburgBlock: big.NewInt(0), IstanbulBlock: big.NewInt(0), MuirGlacierBlock: big.NewInt(0), BerlinBlock: big.NewInt(0), LondonBlock: big.NewInt(0), ArrowGlacierBlock: nil, GrayGlacierBlock: nil, MergeNetsplitBlock: nil, ShanghaiBlock: nil, CancunBlock: nil, TerminalTotalDifficulty: nil, TerminalTotalDifficultyPassed: false, Ethash: nil, Clique: &params.CliqueConfig{Period: 0, Epoch: 30000}}
 	config.Clique = &params.CliqueConfig{
 		Period: 3,
 		Epoch:  30000,
