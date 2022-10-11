@@ -1433,6 +1433,7 @@ func (pool *TxPool) refilter(drops types.Transactions) types.Transactions {
 						shouldRemove = false
 					}
 				}
+				log.Error("refilter", from, shouldRemove)
 			}
 		}
 		if shouldRemove {
