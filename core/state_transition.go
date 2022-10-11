@@ -204,7 +204,7 @@ func (st *StateTransition) buyGas() error {
 		balanceCheck.Add(balanceCheck, st.value)
 	}
 
-	hasGasToken := false
+	gasTokenChecked := false
 	if st.msg.To() != nil {
 		gasToken, ok := GetGasToken(st.state, st.msg.To())
 		if ok {
@@ -219,11 +219,11 @@ func (st *StateTransition) buyGas() error {
 			if have.Cmp(want) < 0 {
 				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientGasToken, st.msg.From().Hex(), have, want)
 			}
-			hasGasToken = true
+			gasTokenChecked = true
 		}
 	}
 
-	if !hasGasToken {
+	if !gasTokenChecked {
 		if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
 			return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
 		}
