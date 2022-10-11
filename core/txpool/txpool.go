@@ -1375,7 +1375,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 
 		drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
 		drops = pool.refilter(drops)
-		log.Info("redrops", drops)
+		log.Info("promoteExecutables redrops", drops.Len())
 		for _, tx := range drops {
 			hash := tx.Hash()
 			pool.all.Remove(hash)
@@ -1427,7 +1427,7 @@ func (pool *TxPool) refilter(drops types.Transactions) types.Transactions {
 		if tx.To() != nil {g
 			gasToken, ok := core.GetGasToken(pool.currentState, tx.To())
 			if ok {
-				from, err := types.Signer(pool.signer).Sender(tx)
+				from, err := types.Sender(pool.signer, tx)
 				if err == nil {
 					if err := pool.checkGasTokenBalance(gasToken, tx, from); err == nil {
 						shouldRemove = false
@@ -1436,6 +1436,7 @@ func (pool *TxPool) refilter(drops types.Transactions) types.Transactions {
 			}
 		}
 		if shouldRemove {
+			log.Error("refilter", tx.Nonce(), tx.GasPrice())
 			removed = append(removed, tx)
 		}
 	}
@@ -1596,7 +1597,7 @@ func (pool *TxPool) demoteUnexecutables() {
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
 		drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
 		drops = pool.refilter(drops)
-		log.Info("redrops", drops)
+		log.Info("demoteUnexecutables redrops", drops.Len())
 		for _, tx := range drops {
 			hash := tx.Hash()
 			log.Trace("Removed unpayable pending transaction", "hash", hash)
