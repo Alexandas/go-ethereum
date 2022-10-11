@@ -235,7 +235,7 @@ func (st *StateTransition) buyGas() error {
 	st.gas += st.msg.Gas()
 	st.initialGas = st.msg.Gas()
 
-	if hasGasToken {
+	if gasTokenChecked {
 		return nil
 	}
 
