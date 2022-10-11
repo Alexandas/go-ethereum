@@ -1424,7 +1424,7 @@ func (pool *TxPool) refilter(drops types.Transactions) types.Transactions {
 	removed := make(types.Transactions, 0)
 	for _, tx := range drops {
 		shouldRemove := true
-		if tx.To() != nil {g
+		if tx.To() != nil {
 			gasToken, ok := core.GetGasToken(pool.currentState, tx.To())
 			if ok {
 				from, err := types.Sender(pool.signer, tx)
