@@ -758,6 +758,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 		inserted, old := list.Add(tx, pool.config.PriceBump)
 		if !inserted {
 			pendingDiscardMeter.Mark(1)
+			log.Error("add", inserted, old)
 			return false, ErrReplaceUnderpriced
 		}
 		// New transaction is better, replace old one
@@ -809,6 +810,7 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction, local boo
 	if !inserted {
 		// An older transaction was better, discard this
 		queuedDiscardMeter.Mark(1)
+		log.Error("enqueueTx", inserted, old)
 		return false, ErrReplaceUnderpriced
 	}
 	// Discard any previous transaction and mark this
