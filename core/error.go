@@ -67,6 +67,10 @@ var (
 	// is higher than the balance of the user's account.
 	ErrInsufficientFunds = errors.New("insufficient funds for gas * price + value")
 
+	ErrInsufficientGasToken = errors.New("insufficient gas token for gas * price + value")
+
+	ErrGasTokenCall = errors.New("call failed for gas token")
+
 	// ErrGasUintOverflow is returned when calculating gas usage.
 	ErrGasUintOverflow = errors.New("gas uint64 overflow")
 

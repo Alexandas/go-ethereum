@@ -7,14 +7,16 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
+	"golang.org/x/crypto/sha3"
 )
 
 type State interface {
 	GetState(c common.Address, hash common.Hash) common.Hash
 }
 
-func GetBindToken(st State, c *common.Address) (common.Address, bool) {
+func GetGasToken(st State, c *common.Address) (common.Address, bool) {
 	storageHash := common.Hash{}
 	copy(storageHash[:20], c[:])
 	bind := st.GetState(GasTokenBinderAddress, storageHash)
@@ -22,6 +24,109 @@ func GetBindToken(st State, c *common.Address) (common.Address, bool) {
 	b := common.BytesToAddress(bind[:])
 	return b, !bytes.Equal(b[:], addressZero[:])
 }
+
+func GetTokenBalanceOf(evm *vm.EVM, token common.Address, caller common.Address) (*big.Int, error) {
+	balanceOfABI := `[{"constant": true,"inputs": [{"internalType": "address","name": "","type": "address"}],"name": "balanceOf","outputs": [{"internalType": "uint256","name": "","type": "uint256"}],"payable": false,"stateMutability": "view","type": "function"}]`
+	var (
+		balanceOfFunc abi.ABI
+		err           error
+	)
+	balanceOfFunc, err = abi.JSON(bytes.NewReader([]byte(balanceOfABI)))
+	if err != nil {
+		panic(err)
+	}
+	input, err := balanceOfFunc.Pack("balanceOf", caller)
+	if err != nil {
+		return big.NewInt(0), err
+	}
+	ret, _, err := evm.StaticCall(vm.AccountRef(caller), token, input, uint64(MaxBalanceOfGas))
+	if err != nil {
+		return big.NewInt(0), err
+	}
+	uintType, err := abi.NewType("uint", "", nil)
+	if err != nil {
+		panic(err)
+	}
+	args := abi.Arguments{
+		abi.Argument{
+			Type: uintType,
+		},
+	}
+	data, err := args.Unpack(ret)
+	if err != nil {
+		return big.NewInt(0), err
+	}
+	return data[0].(*big.Int), nil
+}
+
+func GetAmountsIn(evm *vm.EVM, token common.Address, caller common.Address, value *big.Int) (*big.Int, error) {
+	getAmounsInABI := `{"inputs": [{"internalType": "uint256","name": "amountOut","type": "uint256"},{"internalType": "address[]","name": "path","type": "address[]"}],"name": "getAmountsIn","outputs": [{"internalType": "uint256[]","name": "amounts","type": "uint256[]"}],"stateMutability": "view","type": "function"}`
+	var (
+		getAmounsInFunc abi.ABI
+		err             error
+	)
+	getAmounsInFunc, err = abi.JSON(bytes.NewReader([]byte(getAmounsInABI)))
+	if err != nil {
+		panic(err)
+	}
+	path := make([]common.Address, 0)
+	path = append(path, token, WETHAddress)
+	input, err := getAmounsInFunc.Pack("getAmountsIn", value, path)
+	if err != nil {
+		return big.NewInt(0), err
+	}
+	ret, _, err := evm.StaticCall(vm.AccountRef(caller), RouterAddress, input, uint64(MaxGetAmountsInGas))
+	if err != nil {
+		return big.NewInt(0), err
+	}
+	uintArrayType, err := abi.NewType("uint[]", "", nil)
+	if err != nil {
+		panic(err)
+	}
+	args := abi.Arguments{
+		abi.Argument{
+			Type: uintArrayType,
+		},
+	}
+	data, err := args.Unpack(ret)
+	if err != nil {
+		return big.NewInt(0), err
+	}
+	return data[0].(*big.Int), nil
+}
+
+// func GetWETHReserves(st State, token common.Address) *big.Int {
+// 	var (
+// 		tokenA common.Address
+// 		tokenB common.Address
+// 	)
+// 	isLess := bytes.Compare(WETHAddress[:], token[:]) == -1
+// 	if isLess {
+// 		tokenA = WETHAddress
+// 		tokenB = token
+// 	} else {
+// 		tokenA = token
+// 		tokenB = WETHAddress
+// 	}
+// 	var packTokens []byte
+// 	packTokens = append(packTokens, tokenA[:]...)
+// 	packTokens = append(packTokens, tokenB[:]...)
+// 	tokenBuf := keccak256(packTokens)
+// 	var packArgs []byte
+// 	packArgs = append(packArgs, 0xff)
+// 	packArgs = append(packArgs, FactoryAddress[:]...)
+// 	packArgs = append(packArgs, tokenBuf...)
+// 	packArgs = append(packArgs, FactoryByteCodeHash...)
+// 	buf := keccak256(packArgs)
+// 	pair := common.BytesToAddress(buf[12:])
+// 	storageHash := common.BytesToHash([]byte{8})
+// 	reserves := st.GetState(pair, storageHash)
+// 	if isLess {
+// 		return new(big.Int).SetBytes(reserves[18:])
+// 	} else {
+// 		return new(big.Int).SetBytes(reserves[4:18])
+// 	}
+// }
 
 func NewETHSwapData(amountOut *big.Int, amountInMax *big.Int, token common.Address, to common.Address, deadline *big.Int) (data []byte) {
 	swapABI := `[{"inputs":[{"internalType":"uint256","name":"amountOut","type":"uint256"},{"internalType":"uint256","name":"amountInMax","type":"uint256"},{"internalType":"address[]","name":"path","type":"address[]"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"swapTokensForExactETH","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"}]`
@@ -69,4 +174,10 @@ func DefaulSwapDevGenesisBlock() *Genesis {
 			GasTokenBinderAddress: {Balance: big.NewInt(0), Code: GasTokenBinderCodes},                 // GasTokenBinder
 		},
 	}
+}
+
+func keccak256(data []byte) []byte {
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write(data)
+	return hash.Sum(nil)
 }
