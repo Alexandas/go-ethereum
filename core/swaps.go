@@ -57,6 +57,9 @@ func GetTokenBalanceOf(evm *vm.EVM, token common.Address, caller common.Address)
 	if err != nil {
 		return big.NewInt(0), err
 	}
+	if len(data) == 0 {
+		return big.NewInt(0), fmt.Errorf("invalid unpacked data")
+	}
 	return data[0].(*big.Int), nil
 }
 
