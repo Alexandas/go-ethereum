@@ -18,6 +18,7 @@ package txpool
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"sort"
@@ -31,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -633,10 +635,21 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
-	// TODO
-	// if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
-	// 	return ErrInsufficientFunds
-	// }
+
+	shouldCheckBalance := true
+	if tx.To() != nil {
+		gasToken, ok := core.GetGasToken(pool.currentState, tx.To())
+		if ok {
+			if err := pool.checkGasTokenBalance(gasToken, tx, from); err != nil {
+				return err
+			}
+			shouldCheckBalance = false
+		}
+	}
+	if shouldCheckBalance && pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
+		return core.ErrInsufficientFunds
+	}
+
 	// Ensure the transaction has more gas than the basic tx fee.
 	intrGas, err := core.IntrinsicGas(tx.Data(), tx.AccessList(), tx.To() == nil, true, pool.istanbul)
 	if err != nil {
@@ -644,6 +657,34 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	if tx.Gas() < intrGas {
 		return core.ErrIntrinsicGas
+	}
+	return nil
+}
+
+func (pool *TxPool) checkGasTokenBalance(gasToken common.Address, tx *types.Transaction, from common.Address) error {
+	blkCtx := core.NewEVMBlockContext(pool.chain.CurrentBlock().Header(), pool.chain.(*core.BlockChain), nil)
+	evm := vm.NewEVM(
+		blkCtx,
+		vm.TxContext{
+			GasPrice: tx.GasPrice(),
+			Origin:   from,
+		},
+		vm.StateDB(pool.currentState),
+		pool.chainconfig,
+		vm.Config{NoBaseFee: true},
+	)
+	have, err := core.GetTokenBalanceOf(evm, gasToken, from)
+	fmt.Println("have: ", have, err)
+	if err != nil {
+		return core.ErrGasTokenCall
+	}
+	want, err := core.GetAmountsIn(evm, gasToken, from, tx.Cost())
+	fmt.Println("want: ", want, err)
+	if err != nil {
+		return core.ErrGasTokenCall
+	}
+	if have.Cmp(want) < 0 {
+		return core.ErrInsufficientGasToken
 	}
 	return nil
 }
@@ -1330,7 +1371,9 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 		}
 		log.Trace("Removed old queued transactions", "count", len(forwards))
 		// Drop all transactions that are too costly (low balance or out of gas)
+
 		drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+		drops = pool.refilter(drops)
 		for _, tx := range drops {
 			hash := tx.Hash()
 			pool.all.Remove(hash)
@@ -1373,6 +1416,28 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 		}
 	}
 	return promoted
+}
+
+func (pool *TxPool) refilter(drops types.Transactions) types.Transactions {
+	removed := make(types.Transactions, 0)
+	for _, tx := range drops {
+		shouldRemove := true
+		if tx.To() != nil {g
+			gasToken, ok := core.GetGasToken(pool.currentState, tx.To())
+			if ok {
+				from, err := types.Signer(pool.signer).Sender(tx)
+				if err == nil {
+					if err := pool.checkGasTokenBalance(gasToken, tx, from); err == nil {
+						shouldRemove = false
+					}
+				}
+			}
+		}
+		if shouldRemove {
+			removed = append(removed, tx)
+		}
+	}
+	return removed
 }
 
 // truncatePending removes transactions from the pending queue if the pool is above the
@@ -1528,6 +1593,7 @@ func (pool *TxPool) demoteUnexecutables() {
 		}
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
 		drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+		drops = pool.refilter(drops)
 		for _, tx := range drops {
 			hash := tx.Hash()
 			log.Trace("Removed unpayable pending transaction", "hash", hash)

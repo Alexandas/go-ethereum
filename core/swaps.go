@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -26,7 +27,7 @@ func GetGasToken(st State, c *common.Address) (common.Address, bool) {
 }
 
 func GetTokenBalanceOf(evm *vm.EVM, token common.Address, caller common.Address) (*big.Int, error) {
-	balanceOfABI := `[{"constant": true,"inputs": [{"internalType": "address","name": "","type": "address"}],"name": "balanceOf","outputs": [{"internalType": "uint256","name": "","type": "uint256"}],"payable": false,"stateMutability": "view","type": "function"}]`
+	balanceOfABI := `[{"constant":true,"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"}]`
 	var (
 		balanceOfFunc abi.ABI
 		err           error
@@ -43,7 +44,7 @@ func GetTokenBalanceOf(evm *vm.EVM, token common.Address, caller common.Address)
 	if err != nil {
 		return big.NewInt(0), err
 	}
-	uintType, err := abi.NewType("uint", "", nil)
+	uintType, err := abi.NewType("uint256", "", nil)
 	if err != nil {
 		panic(err)
 	}
@@ -60,7 +61,7 @@ func GetTokenBalanceOf(evm *vm.EVM, token common.Address, caller common.Address)
 }
 
 func GetAmountsIn(evm *vm.EVM, token common.Address, caller common.Address, value *big.Int) (*big.Int, error) {
-	getAmounsInABI := `{"inputs": [{"internalType": "uint256","name": "amountOut","type": "uint256"},{"internalType": "address[]","name": "path","type": "address[]"}],"name": "getAmountsIn","outputs": [{"internalType": "uint256[]","name": "amounts","type": "uint256[]"}],"stateMutability": "view","type": "function"}`
+	getAmounsInABI := `[{"inputs":[{"internalType":"uint256","name":"amountOut","type":"uint256"},{"internalType":"address[]","name":"path","type":"address[]"}],"name":"getAmountsIn","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"view","type":"function"}]`
 	var (
 		getAmounsInFunc abi.ABI
 		err             error
@@ -79,7 +80,7 @@ func GetAmountsIn(evm *vm.EVM, token common.Address, caller common.Address, valu
 	if err != nil {
 		return big.NewInt(0), err
 	}
-	uintArrayType, err := abi.NewType("uint[]", "", nil)
+	uintArrayType, err := abi.NewType("uint256[]", "", nil)
 	if err != nil {
 		panic(err)
 	}
@@ -92,41 +93,18 @@ func GetAmountsIn(evm *vm.EVM, token common.Address, caller common.Address, valu
 	if err != nil {
 		return big.NewInt(0), err
 	}
-	return data[0].(*big.Int), nil
+	if len(data) == 0 {
+		return big.NewInt(0), fmt.Errorf("invalid unpacked data")
+	}
+	if v, ok := data[0].([]*big.Int); ok {
+		if len(v) == 0 {
+			return big.NewInt(0), fmt.Errorf("invalid unpacked data")
+		}
+		return v[0], nil
+	} else {
+		return big.NewInt(0), fmt.Errorf("invalid unpacked data")
+	}
 }
-
-// func GetWETHReserves(st State, token common.Address) *big.Int {
-// 	var (
-// 		tokenA common.Address
-// 		tokenB common.Address
-// 	)
-// 	isLess := bytes.Compare(WETHAddress[:], token[:]) == -1
-// 	if isLess {
-// 		tokenA = WETHAddress
-// 		tokenB = token
-// 	} else {
-// 		tokenA = token
-// 		tokenB = WETHAddress
-// 	}
-// 	var packTokens []byte
-// 	packTokens = append(packTokens, tokenA[:]...)
-// 	packTokens = append(packTokens, tokenB[:]...)
-// 	tokenBuf := keccak256(packTokens)
-// 	var packArgs []byte
-// 	packArgs = append(packArgs, 0xff)
-// 	packArgs = append(packArgs, FactoryAddress[:]...)
-// 	packArgs = append(packArgs, tokenBuf...)
-// 	packArgs = append(packArgs, FactoryByteCodeHash...)
-// 	buf := keccak256(packArgs)
-// 	pair := common.BytesToAddress(buf[12:])
-// 	storageHash := common.BytesToHash([]byte{8})
-// 	reserves := st.GetState(pair, storageHash)
-// 	if isLess {
-// 		return new(big.Int).SetBytes(reserves[18:])
-// 	} else {
-// 		return new(big.Int).SetBytes(reserves[4:18])
-// 	}
-// }
 
 func NewETHSwapData(amountOut *big.Int, amountInMax *big.Int, token common.Address, to common.Address, deadline *big.Int) (data []byte) {
 	swapABI := `[{"inputs":[{"internalType":"uint256","name":"amountOut","type":"uint256"},{"internalType":"uint256","name":"amountInMax","type":"uint256"},{"internalType":"address[]","name":"path","type":"address[]"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"swapTokensForExactETH","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"}]`
