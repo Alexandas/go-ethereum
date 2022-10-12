@@ -211,20 +211,19 @@ func (st *StateTransition) buyGas() error {
 			if st.gasPrice.Cmp(big.NewInt(0)) == 0 {
 				gasTokenChecked = true
 			} else {
-				have, err := GetTokenBalanceOf(st.evm, gasToken, *st.msg.To())
+				have, err := GetTokenBalanceOf(st.evm, gasToken, st.msg.From())
 				if err != nil {
 					return fmt.Errorf("%w: gas token %v", ErrGasTokenCall, gasToken)
 				}
 				want, err := GetAmountsIn(st.evm, gasToken, *st.msg.To(), balanceCheck)
 				if err != nil {
-					return fmt.Errorf("%w: gas token %v want weth %v", ErrGasTokenCall, gasToken, balanceCheck)
+					return fmt.Errorf("%w: gas token %v want %v weth %v", ErrGasTokenCall, gasToken, want, balanceCheck)
 				}
 				if have.Cmp(want) < 0 {
 					return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientGasToken, st.msg.From().Hex(), have, want)
 				}
 				gasTokenChecked = true
 			}
-
 		}
 	}
 
