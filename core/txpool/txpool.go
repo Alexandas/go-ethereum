@@ -639,7 +639,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if tx.To() != nil {
 		gasToken, ok := core.GetGasToken(pool.currentState, tx.To())
 		if ok {
-			if err := pool.checkGasTokenBalance(gasToken, tx, from); err != nil {
+			if err := pool.validateGasTokenBalance(gasToken, tx, from); err != nil {
 				return err
 			}
 			shouldCheckBalance = false
@@ -660,7 +660,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	return nil
 }
 
-func (pool *TxPool) checkGasTokenBalance(gasToken common.Address, tx *types.Transaction, from common.Address) error {
+func (pool *TxPool) validateGasTokenBalance(gasToken common.Address, tx *types.Transaction, from common.Address) error {
 	blkCtx := core.NewEVMBlockContext(pool.chain.CurrentBlock().Header(), pool.chain.(*core.BlockChain), nil)
 	evm := vm.NewEVM(
 		blkCtx,
@@ -1423,7 +1423,7 @@ func (pool *TxPool) remove(tx *types.Transaction) bool {
 	if tx.To() != nil {
 		gasToken, ok := core.GetGasToken(pool.currentState, tx.To())
 		if ok {
-			if err := pool.checkGasTokenBalance(gasToken, tx, addr); err != nil {
+			if err := pool.validateGasTokenBalance(gasToken, tx, addr); err != nil {
 				return true
 			}
 			return false
