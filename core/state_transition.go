@@ -432,8 +432,7 @@ func (st *StateTransition) refundGas(refundQuotient uint64) {
 
 	if st.msg.To() != nil {
 		_, ok := GetGasToken(st.state, st.msg.To())
-		if !ok {
-			// TODO
+		if ok {
 			st.gp.AddGas(st.gas)
 			return
 		}
