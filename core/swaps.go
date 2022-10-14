@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
-	"golang.org/x/crypto/sha3"
 )
 
 type State interface {
@@ -155,10 +154,4 @@ func DefaulSwapDevGenesisBlock() *Genesis {
 			GasTokenBinderAddress: {Balance: big.NewInt(0), Code: GasTokenBinderCodes},                 // GasTokenBinder
 		},
 	}
-}
-
-func keccak256(data []byte) []byte {
-	hash := sha3.NewLegacyKeccak256()
-	hash.Write(data)
-	return hash.Sum(nil)
 }

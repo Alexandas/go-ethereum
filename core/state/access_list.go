@@ -18,6 +18,7 @@ package state
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type accessList struct {
@@ -112,6 +113,7 @@ func (al *accessList) AddSlot(address common.Address, slot common.Hash) (addrCha
 // operations.
 func (al *accessList) DeleteSlot(address common.Address, slot common.Hash) {
 	idx, addrOk := al.addresses[address]
+	log.Info("DeleteSlot", "address", address, "slot", slot, "idx", idx, "addrOk", addrOk)
 	// There are two ways this can fail
 	if !addrOk {
 		panic("reverting slot change, address not present in list")
