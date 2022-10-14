@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -205,25 +206,22 @@ func (st *StateTransition) buyGas() error {
 	}
 
 	gasTokenChecked := false
-	if st.msg.To() != nil {
-		gasToken, ok := GetGasToken(st.state, st.msg.To())
-		if ok {
-			if st.gasPrice.Cmp(big.NewInt(0)) == 0 {
-				gasTokenChecked = true
-			} else {
-				have, err := GetTokenBalanceOf(st.evm, gasToken, st.msg.From())
-				if err != nil {
-					return fmt.Errorf("%w: gas token %v", ErrGasTokenCall, gasToken)
-				}
-				want, err := GetAmountsIn(st.evm, gasToken, *st.msg.To(), balanceCheck)
-				if err != nil {
-					return fmt.Errorf("%w: gas token %v want %v weth %v", ErrGasTokenCall, gasToken, want, balanceCheck)
-				}
-				if have.Cmp(want) < 0 {
-					return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientGasToken, st.msg.From().Hex(), have, want)
-				}
-				gasTokenChecked = true
+	if gasToken, ok := st.getGasToken(); ok {
+		if st.gasPrice.Cmp(big.NewInt(0)) == 0 {
+			gasTokenChecked = true
+		} else {
+			have, err := GetTokenBalanceOf(st.evm, gasToken, st.msg.From())
+			if err != nil {
+				return fmt.Errorf("%w: gas token %v", ErrSysCall, gasToken)
 			}
+			want, err := GetAmountsIn(st.evm, gasToken, *st.msg.To(), balanceCheck)
+			if err != nil {
+				return fmt.Errorf("%w: gas token %v want %v weth %v", ErrSysCall, gasToken, want, balanceCheck)
+			}
+			if have.Cmp(want) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientGasToken, st.msg.From().Hex(), have, want)
+			}
+			gasTokenChecked = true
 		}
 	}
 
@@ -383,12 +381,9 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		// are 0. This avoids a negative effectiveTip being applied to
 		// the coinbase when simulating calls.
 	} else {
-		if res, err := st.checkFee(effectiveTip); err != nil {
-			return &ExecutionResult{
-				UsedGas:    st.gasUsed(),
-				Err:        fmt.Errorf("swap call failed: %w", err),
-				ReturnData: res,
-			}, fmt.Errorf("swap call failed: %w", err)
+		if err := st.checkFee(effectiveTip); err != nil {
+			log.Trace("checkFee", "err", err)
+			return nil, fmt.Errorf("router swap failed: %w, vmerr %v", ErrSysCall, err)
 		}
 	}
 
@@ -399,24 +394,25 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	}, nil
 }
 
-func (st *StateTransition) checkFee(effectiveTip *big.Int) ([]byte, error) {
+func (st *StateTransition) checkFee(effectiveTip *big.Int) error {
 	fee := new(big.Int).SetUint64(st.gasUsed())
 	fee.Mul(fee, effectiveTip)
-	if st.msg.To() != nil {
-		token, ok := GetGasToken(st.state, st.msg.To())
-		if ok {
-			amountMax, _ := new(big.Int).SetString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16)
-			swapData := NewETHSwapData(fee, amountMax, token, st.evm.Context.Coinbase, st.evm.Context.Time)
-			ret, _, vmerr := st.evm.Call(vm.AccountRef(st.msg.From()), RouterAddress, swapData, uint64(MaxSwapGas), big.NewInt(0))
-			return ret, vmerr
-		} else {
-			st.state.AddBalance(st.evm.Context.Coinbase, fee)
-			return nil, nil
-		}
-	} else {
-		st.state.AddBalance(st.evm.Context.Coinbase, fee)
-		return nil, nil
+	if token, ok := st.getGasToken(); ok {
+		amountMax, _ := new(big.Int).SetString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16)
+		swapData := NewETHSwapData(fee, amountMax, token, st.evm.Context.Coinbase, st.evm.Context.Time)
+		_, _, vmerr := st.evm.Call(vm.AccountRef(st.msg.From()), RouterAddress, swapData, uint64(MaxSwapGas), big.NewInt(0))
+		return vmerr
 	}
+	st.state.AddBalance(st.evm.Context.Coinbase, fee)
+	return nil
+}
+
+func (st *StateTransition) getGasToken() (common.Address, bool) {
+	if st.msg.To() != nil {
+		gasToken, ok := GetGasToken(st.state, st.msg.To())
+		return gasToken, ok
+	}
+	return common.Address{}, false
 }
 
 func (st *StateTransition) refundGas(refundQuotient uint64) {
@@ -430,12 +426,9 @@ func (st *StateTransition) refundGas(refundQuotient uint64) {
 	// Return ETH for remaining gas, exchanged at the original rate.
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
 
-	if st.msg.To() != nil {
-		_, ok := GetGasToken(st.state, st.msg.To())
-		if ok {
-			st.gp.AddGas(st.gas)
-			return
-		}
+	if _, ok := st.getGasToken(); ok {
+		st.gp.AddGas(st.gas)
+		return
 	}
 	st.state.AddBalance(st.msg.From(), remaining)
 

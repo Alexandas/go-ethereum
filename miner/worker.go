@@ -912,12 +912,12 @@ func (w *worker) commitTransactions(env *environment, txs *types.TransactionsByP
 			log.Trace("Gas limit exceeded for current block", "sender", from)
 			txs.Pop()
 		case errors.Is(err, core.ErrInsufficientGasToken):
-			// New head notification data race between the transaction pool and miner, shift
+			// Insufficient gas token to pay gas
 			log.Trace("Insufficient gas token", "sender", from, "nonce", tx.Nonce())
 			txs.Pop()
-		case errors.Is(err, core.ErrGasTokenCall):
-			// New head notification data race between the transaction pool and miner, shift
-			log.Trace("Call failed for gas token", "sender", from, "nonce", tx.Nonce())
+		case errors.Is(err, core.ErrSysCall):
+			// Error on system call
+			log.Trace("Call failed for system call", "sender", from, "nonce", tx.Nonce())
 			txs.Pop()
 
 		case errors.Is(err, core.ErrNonceTooLow):

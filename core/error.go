@@ -69,7 +69,7 @@ var (
 
 	ErrInsufficientGasToken = errors.New("insufficient gas token for gas * price + value")
 
-	ErrGasTokenCall = errors.New("call failed for gas token")
+	ErrSysCall = errors.New("call failed for system")
 
 	// ErrGasUintOverflow is returned when calculating gas usage.
 	ErrGasUintOverflow = errors.New("gas uint64 overflow")

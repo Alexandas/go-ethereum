@@ -18,6 +18,7 @@ package txpool
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"sort"
@@ -674,14 +675,25 @@ func (pool *TxPool) validateGasTokenBalance(gasToken common.Address, tx *types.T
 	)
 	have, err := core.GetTokenBalanceOf(evm, gasToken, from)
 	if err != nil {
+<<<<<<< HEAD:core/txpool/txpool.go
 		return core.ErrGasTokenCall
+=======
+		return fmt.Errorf("%w: gas token %v", ErrSysCall, gasToken)
+>>>>>>> d1aa1e640 (fix):core/tx_pool.go
 	}
 	want, err := core.GetAmountsIn(evm, gasToken, from, tx.Cost())
 	if err != nil {
+<<<<<<< HEAD:core/txpool/txpool.go
 		return core.ErrGasTokenCall
 	}
 	if have.Cmp(want) < 0 {
 		return core.ErrInsufficientGasToken
+=======
+		return fmt.Errorf("%w: gas token %v want %v", ErrSysCall, gasToken, want)
+	}
+	if have.Cmp(want) < 0 {
+		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientGasToken, from, have, want)
+>>>>>>> d1aa1e640 (fix):core/tx_pool.go
 	}
 	return nil
 }
