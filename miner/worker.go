@@ -913,11 +913,11 @@ func (w *worker) commitTransactions(env *environment, txs *types.TransactionsByP
 			txs.Pop()
 		case errors.Is(err, core.ErrInsufficientGasToken):
 			// Insufficient gas token to pay gas
-			log.Trace("Insufficient gas token", "sender", from, "nonce", tx.Nonce())
+			log.Info("Insufficient gas token", "sender", from, "nonce", tx.Nonce())
 			txs.Pop()
 		case errors.Is(err, core.ErrSysCall):
 			// Error on system call
-			log.Trace("Call failed for system call", "sender", from, "nonce", tx.Nonce())
+			log.Info("Call failed for system call", "sender", from, "nonce", tx.Nonce())
 			txs.Pop()
 
 		case errors.Is(err, core.ErrNonceTooLow):

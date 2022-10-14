@@ -139,8 +139,9 @@ func DefaulSwapDevGenesisBlock() *Genesis {
 		common.BytesToHash([]byte{1}): common.BytesToHash(WETHAddress[:]),
 	}
 	faucet := common.HexToAddress("f1658c608708172655a8e70a1624c29f956ee63d")
+	faucet1 := common.HexToAddress("99F5a620384A5a530320Fc0Be2af3b69D763ED4f")
+	faucet2 := common.HexToAddress("D83c37edF25DCE7FD965a8E7aA0f22F5bbfa91Ca")
 	a, _ := big.NewInt(0).SetString("1000000000000000000000000000", 10)
-	// 0xD83c37edF25DCE7FD965a8E7aA0f22F5bbfa91Ca
 	return &Genesis{
 		Config:     &config,
 		ExtraData:  hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000AcD534B544e5E83E09E1394CecFBfAF6Fca61E0A0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
@@ -149,6 +150,8 @@ func DefaulSwapDevGenesisBlock() *Genesis {
 		Difficulty: big.NewInt(0),
 		Alloc: map[common.Address]GenesisAccount{
 			faucet:                {Balance: a},
+			faucet1:               {Balance: a},
+			faucet2:               {Balance: a},
 			FactoryAddress:        {Balance: big.NewInt(0), Code: FactoryCodes},                        // UniswapFactory
 			WETHAddress:           {Balance: big.NewInt(0), Code: WETHCodes},                           // WETH
 			RouterAddress:         {Balance: big.NewInt(0), Code: RouterCodes, Storage: routerStorage}, // UniswapRouter

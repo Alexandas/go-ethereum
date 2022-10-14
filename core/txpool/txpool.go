@@ -632,8 +632,12 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 
 	// Ensure the transaction adheres to nonce ordering
 	if pool.currentState.GetNonce(from) > tx.Nonce() {
+<<<<<<< HEAD:core/txpool/txpool.go
 		log.Info("txpool", "from", from, "GetNonce", pool.currentState.GetNonce(from), "tx.Nonce()", tx.Nonce())
 		return core.ErrNonceTooLow
+=======
+		return ErrNonceTooLow
+>>>>>>> d74815055 (debug test):core/tx_pool.go
 	}
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
@@ -677,11 +681,11 @@ func (pool *TxPool) validateGasTokenBalance(gasToken common.Address, tx *types.T
 	)
 	have, err := core.GetTokenBalanceOf(evm, gasToken, from)
 	if err != nil {
-		return fmt.Errorf("%w: gas token %v", core.ErrSysCall, gasToken)
+		return fmt.Errorf("%w: get gas token balance failed %v", ErrSysCall, err)
 	}
 	want, err := core.GetAmountsIn(evm, gasToken, from, tx.Cost())
 	if err != nil {
-		return fmt.Errorf("%w: gas token %v want %v", core.ErrSysCall, gasToken, want)
+		return fmt.Errorf("%w: get amount in failed %v", ErrSysCall, err)
 	}
 	if have.Cmp(want) < 0 {
 		return fmt.Errorf("%w: address %v have %v want %v", core.ErrInsufficientGasToken, from, have, want)

@@ -1961,7 +1961,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		SetDNSDiscoveryDefaults(cfg, params.GoerliGenesisHash)
 	case ctx.Bool(SwapTestFlag.Name):
 		if !ctx.IsSet(NetworkIdFlag.Name) {
-			cfg.NetworkId = 1133
+			cfg.NetworkId = 1130
 		}
 		cfg.Genesis = core.DefaulSwapDevGenesisBlock()
 		SetDNSDiscoveryDefaults(cfg, params.SwapTestnetGenesisHash)

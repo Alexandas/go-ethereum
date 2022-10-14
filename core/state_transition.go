@@ -212,11 +212,11 @@ func (st *StateTransition) buyGas() error {
 		} else {
 			have, err := GetTokenBalanceOf(st.evm, gasToken, st.msg.From())
 			if err != nil {
-				return fmt.Errorf("%w: gas token %v", ErrSysCall, gasToken)
+				return fmt.Errorf("%w: gas token %v get balance of failed %v", ErrSysCall, gasToken, err)
 			}
 			want, err := GetAmountsIn(st.evm, gasToken, *st.msg.To(), balanceCheck)
 			if err != nil {
-				return fmt.Errorf("%w: gas token %v want %v weth %v", ErrSysCall, gasToken, want, balanceCheck)
+				return fmt.Errorf("%w: gas token %v get amount in failed %v", ErrSysCall, gasToken, err)
 			}
 			if have.Cmp(want) < 0 {
 				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientGasToken, st.msg.From().Hex(), have, want)
@@ -382,7 +382,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		// the coinbase when simulating calls.
 	} else {
 		if err := st.checkFee(effectiveTip); err != nil {
-			log.Trace("checkFee", "err", err)
+			log.Info("checkFee", "err", err)
 			return nil, fmt.Errorf("router swap failed: %w, vmerr %v", ErrSysCall, err)
 		}
 	}
