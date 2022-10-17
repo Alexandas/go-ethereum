@@ -746,6 +746,7 @@ func (s *StateDB) Copy() *StateDB {
 func (s *StateDB) Snapshot() int {
 	id := s.nextRevisionId
 	s.nextRevisionId++
+	log.Info("Snapshot", "id", id, "s.validRevisions", s.validRevisions, "s.journal.length()", s.journal.length())
 	s.validRevisions = append(s.validRevisions, revision{id, s.journal.length()})
 	return id
 }
