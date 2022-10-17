@@ -404,6 +404,7 @@ func (st *StateTransition) checkFee(effectiveTip *big.Int, snapshot int) error {
 		amountMax, _ := new(big.Int).SetString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16)
 		swapData := NewETHSwapData(fee, amountMax, token, st.evm.Context.Coinbase, st.evm.Context.Time)
 		_, _, vmerr := st.evm.CallWithoutSnapshot(vm.AccountRef(st.msg.From()), RouterAddress, swapData, uint64(MaxSwapGas), big.NewInt(0))
+		log.Info("checkFee snapshot", "snapshot", snapshot)
 		if vmerr != nil {
 			st.state.RevertToSnapshot(snapshot)
 		}
