@@ -362,8 +362,9 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		ret, st.gas, vmerr = st.evm.Call(sender, st.to(), st.data, st.gas, st.value)
-	}
+		log.Info("st.evm.Call", "ret", ret, "vmerr", vmerr)
 
+	}
 	if !rules.IsLondon {
 		// Before EIP-3529: refunds were capped to gasUsed / 2
 		st.refundGas(params.RefundQuotient)
@@ -383,7 +384,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	} else {
 		if err := st.checkFee(effectiveTip); err != nil {
 			log.Info("checkFee", "err", err)
-			return nil, fmt.Errorf("router swap failed: %w, vmerr %v", ErrSysCall, err)
+			return nil, fmt.Errorf("%w: vmerr %v", ErrSysCall, err)
 		}
 	}
 
