@@ -347,19 +347,19 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, msg.From(), msg.Value()) {
 		return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
 	}
+	snapshot := st.state.Snapshot()
+	log.Info("st.state.Snapshot()", "snapshot", snapshot)
 
 	// Set up the initial access list.
 	if rules.IsBerlin {
 		st.state.PrepareAccessList(msg.From(), msg.To(), vm.ActivePrecompiles(rules), msg.AccessList())
 	}
 	var (
-		ret      []byte
-		vmerr    error // vm errors do not effect consensus and are therefore not assigned to err
-		snapshot int
+		ret   []byte
+		vmerr error // vm errors do not effect consensus and are therefore not assigned to err
 	)
 	log.Info("dsnapshot", "snapshot", snapshot)
-	snapshot = st.state.Snapshot()
-	log.Info("st.state.Snapshot()", "snapshot", snapshot)
+
 	if contractCreation {
 		ret, _, st.gas, vmerr = st.evm.Create(sender, st.data, st.gas, st.value)
 	} else {
