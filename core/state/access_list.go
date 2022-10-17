@@ -89,7 +89,7 @@ func (al *accessList) AddAddress(address common.Address) bool {
 // For any 'true' value returned, a corresponding journal entry must be made.
 func (al *accessList) AddSlot(address common.Address, slot common.Hash) (addrChange bool, slotChange bool) {
 	idx, addrPresent := al.addresses[address]
-	log.Info("AddSlot", "address", address, "idx", idx, "slot", slot)
+	log.Info("AddSlot", "address", address, "idx", idx, "slot", slot, "addrPresent", addrPresent, "al.addresses", al.addresses)
 	if !addrPresent || idx == -1 {
 		// Address not present, or addr present but no slots there
 		al.addresses[address] = len(al.slots)
