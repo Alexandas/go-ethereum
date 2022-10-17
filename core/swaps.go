@@ -39,7 +39,7 @@ func GetTokenBalanceOf(evm *vm.EVM, token common.Address, caller common.Address)
 	if err != nil {
 		return big.NewInt(0), err
 	}
-	ret, _, err := evm.StaticCall(vm.AccountRef(caller), token, input, uint64(MaxBalanceOfGas))
+	ret, _, err := evm.SystemStaticCall(vm.AccountRef(caller), token, input, uint64(MaxBalanceOfGas))
 	if err != nil {
 		return big.NewInt(0), err
 	}
@@ -78,7 +78,7 @@ func GetAmountsIn(evm *vm.EVM, token common.Address, caller common.Address, valu
 	if err != nil {
 		return big.NewInt(0), err
 	}
-	ret, _, err := evm.StaticCall(vm.AccountRef(caller), RouterAddress, input, uint64(MaxGetAmountsInGas))
+	ret, _, err := evm.SystemStaticCall(vm.AccountRef(caller), RouterAddress, input, uint64(MaxGetAmountsInGas))
 	if err != nil {
 		return big.NewInt(0), err
 	}

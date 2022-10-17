@@ -206,25 +206,23 @@ func (st *StateTransition) buyGas() error {
 	}
 
 	gasTokenChecked := false
-	if _, ok := st.getGasToken(); ok {
-		// if st.gasPrice.Cmp(big.NewInt(0)) == 0 {
-		// 	gasTokenChecked = true
-		// } else {
-		// 	have, err := GetTokenBalanceOf(st.evm, gasToken, st.msg.From())
-		// 	if err != nil {
-		// 		return fmt.Errorf("%w: gas token %v get balance of failed %v", ErrSysCall, gasToken, err)
-		// 	}
-		// 	want, err := GetAmountsIn(st.evm, gasToken, *st.msg.To(), balanceCheck)
-		// 	if err != nil {
-		// 		return fmt.Errorf("%w: gas token %v get amount in failed %v", ErrSysCall, gasToken, err)
-		// 	}
-		// 	if have.Cmp(want) < 0 {
-		// 		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientGasToken, st.msg.From().Hex(), have, want)
-		// 	}
-		// 	gasTokenChecked = true
-		// }
-		gasTokenChecked = true
-
+	if gasToken, ok := st.getGasToken(); ok {
+		if st.gasPrice.Cmp(big.NewInt(0)) == 0 {
+			gasTokenChecked = true
+		} else {
+			have, err := GetTokenBalanceOf(st.evm, gasToken, st.msg.From())
+			if err != nil {
+				return fmt.Errorf("%w: gas token %v get balance of failed %v", ErrSysCall, gasToken, err)
+			}
+			want, err := GetAmountsIn(st.evm, gasToken, *st.msg.To(), balanceCheck)
+			if err != nil {
+				return fmt.Errorf("%w: gas token %v get amount in failed %v", ErrSysCall, gasToken, err)
+			}
+			if have.Cmp(want) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientGasToken, st.msg.From().Hex(), have, want)
+			}
+			gasTokenChecked = true
+		}
 	}
 
 	if !gasTokenChecked {
@@ -367,7 +365,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	} else {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
-		ret, st.gas, vmerr = st.evm.CallWithoutSnapshot(sender, st.to(), st.data, st.gas, st.value)
+		ret, st.gas, vmerr = st.evm.SystemCall(sender, st.to(), st.data, st.gas, st.value)
 	}
 	if !rules.IsLondon {
 		// Before EIP-3529: refunds were capped to gasUsed / 2
@@ -386,8 +384,9 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		// are 0. This avoids a negative effectiveTip being applied to
 		// the coinbase when simulating calls.
 	} else {
-		if err := st.checkFee(effectiveTip, snapshot); err != nil {
-			log.Info("checkFee", "err", err)
+		if err := st.checkFee(effectiveTip); err != nil {
+			log.Info("checkFee", "snapshot", snapshot, "err", err)
+			st.state.RevertToSnapshot(snapshot)
 			return nil, fmt.Errorf("%w: vmerr %v", ErrSysCall, err)
 		}
 	}
@@ -399,17 +398,13 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	}, nil
 }
 
-func (st *StateTransition) checkFee(effectiveTip *big.Int, snapshot int) error {
+func (st *StateTransition) checkFee(effectiveTip *big.Int) error {
 	fee := new(big.Int).SetUint64(st.gasUsed())
 	fee.Mul(fee, effectiveTip)
 	if token, ok := st.getGasToken(); ok {
 		amountMax, _ := new(big.Int).SetString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16)
 		swapData := NewETHSwapData(fee, amountMax, token, st.evm.Context.Coinbase, st.evm.Context.Time)
-		_, _, vmerr := st.evm.CallWithoutSnapshot(vm.AccountRef(st.msg.From()), RouterAddress, swapData, uint64(MaxSwapGas), big.NewInt(0))
-		log.Info("checkFee snapshot", "snapshot", snapshot)
-		if vmerr != nil {
-			st.state.RevertToSnapshot(snapshot)
-		}
+		_, _, vmerr := st.evm.SystemCall(vm.AccountRef(st.msg.From()), RouterAddress, swapData, uint64(MaxSwapGas), big.NewInt(0))
 		return vmerr
 	}
 	st.state.AddBalance(st.evm.Context.Coinbase, fee)
