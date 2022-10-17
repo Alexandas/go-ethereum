@@ -18,6 +18,7 @@ package txpool
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"sort"
@@ -31,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -661,28 +663,28 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 }
 
 func (pool *TxPool) validateGasTokenBalance(gasToken common.Address, tx *types.Transaction, from common.Address) error {
-	// blkCtx := NewEVMBlockContext(pool.chain.CurrentBlock().Header(), pool.chain.(*BlockChain), nil)
-	// evm := vm.NewEVM(
-	// 	blkCtx,
-	// 	vm.TxContext{
-	// 		GasPrice: tx.GasPrice(),
-	// 		Origin:   from,
-	// 	},
-	// 	vm.StateDB(pool.currentState),
-	// 	pool.chainconfig,
-	// 	vm.Config{NoBaseFee: true},
-	// )
-	// have, err := GetTokenBalanceOf(evm, gasToken, from)
-	// if err != nil {
-	// 	return fmt.Errorf("%w: get gas token balance failed %v", ErrSysCall, err)
-	// }
-	// want, err := GetAmountsIn(evm, gasToken, from, tx.Cost())
-	// if err != nil {
-	// 	return fmt.Errorf("%w: get amount in failed %v", ErrSysCall, err)
-	// }
-	// if have.Cmp(want) < 0 {
-	// 	return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientGasToken, from, have, want)
-	// }
+	blkCtx := NewEVMBlockContext(pool.chain.CurrentBlock().Header(), pool.chain.(*BlockChain), nil)
+	evm := vm.NewEVM(
+		blkCtx,
+		vm.TxContext{
+			GasPrice: tx.GasPrice(),
+			Origin:   from,
+		},
+		vm.StateDB(pool.currentState),
+		pool.chainconfig,
+		vm.Config{NoBaseFee: true},
+	)
+	have, err := GetTokenBalanceOf(evm, gasToken, from)
+	if err != nil {
+		return fmt.Errorf("%w: get gas token balance failed %v", ErrSysCall, err)
+	}
+	want, err := GetAmountsIn(evm, gasToken, from, tx.Cost())
+	if err != nil {
+		return fmt.Errorf("%w: get amount in failed %v", ErrSysCall, err)
+	}
+	if have.Cmp(want) < 0 {
+		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientGasToken, from, have, want)
+	}
 	return nil
 }
 
