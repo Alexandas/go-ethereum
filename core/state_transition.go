@@ -205,25 +205,23 @@ func (st *StateTransition) buyGas() error {
 		balanceCheck.Add(balanceCheck, st.value)
 	}
 	gasTokenChecked := false
-	if _, ok := st.getGasToken(); ok {
-		gasTokenChecked = true
-
-		// if st.gasPrice.Cmp(big.NewInt(0)) == 0 {
-		// 	gasTokenChecked = true
-		// } else {
-		// 	have, err := GetTokenBalanceOf(st.evm, gasToken, st.msg.From())
-		// 	if err != nil {
-		// 		return fmt.Errorf("%w: gas token %v get balance of failed %v", ErrSysCall, gasToken, err)
-		// 	}
-		// 	want, err := GetAmountsIn(st.evm, gasToken, *st.msg.To(), balanceCheck)
-		// 	if err != nil {
-		// 		return fmt.Errorf("%w: gas token %v get amount in failed %v", ErrSysCall, gasToken, err)
-		// 	}
-		// 	if have.Cmp(want) < 0 {
-		// 		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientGasToken, st.msg.From().Hex(), have, want)
-		// 	}
-		// 	gasTokenChecked = true
-		// }
+	if gasToken, ok := st.getGasToken(); ok {
+		if st.gasPrice.Cmp(big.NewInt(0)) == 0 {
+			gasTokenChecked = true
+		} else {
+			have, err := GetTokenBalanceOf(st.evm, gasToken, st.msg.From())
+			if err != nil {
+				return fmt.Errorf("%w: gas token %v get balance of failed %v", ErrSysCall, gasToken, err)
+			}
+			// want, err := GetAmountsIn(st.evm, gasToken, *st.msg.To(), balanceCheck)
+			// if err != nil {
+			// 	return fmt.Errorf("%w: gas token %v get amount in failed %v", ErrSysCall, gasToken, err)
+			// }
+			// if have.Cmp(want) < 0 {
+			// 	return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientGasToken, st.msg.From().Hex(), have, want)
+			// }
+			gasTokenChecked = true
+		}
 	}
 
 	if !gasTokenChecked {
