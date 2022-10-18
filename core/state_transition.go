@@ -316,6 +316,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	var stErr error
 	defer func() {
 		if stErr != nil {
+			log.Info("stErr", "stErr", stErr, "snapshot", snapshot)
 			st.state.RevertToSnapshot(snapshot)
 		}
 	}()
