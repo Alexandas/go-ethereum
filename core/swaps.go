@@ -82,6 +82,10 @@ func GetAmountsIn(evm *vm.EVM, token common.Address, caller common.Address, valu
 	if err != nil {
 		return big.NewInt(0), err
 	}
+	snap := evm.StateDB.Snapshot()
+	defer func() {
+		evm.StateDB.RevertToSnapshot(snap)
+	}()
 	ret, _, err := evm.SystemStaticCall(vm.AccountRef(caller), RouterAddress, input, uint64(MaxGetAmountsInGas))
 	if err != nil {
 		return big.NewInt(0), err
