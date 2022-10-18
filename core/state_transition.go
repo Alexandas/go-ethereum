@@ -312,17 +312,9 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	// 4. the purchased gas is enough to cover intrinsic usage
 	// 5. there is no overflow when calculating intrinsic gas
 	// 6. caller has enough balance to cover asset transfer for **topmost** call
-	snapshot := st.state.Snapshot()
-	var stErr error
-	defer func() {
-		if stErr != nil {
-			log.Info("stErr", "stErr", stErr, "snapshot", snapshot)
-			st.state.RevertToSnapshot(snapshot)
-		}
-	}()
 	// Check clauses 1-3, buy gas if everything is correct
-	if stErr = st.preCheck(); stErr != nil {
-		return nil, stErr
+	if err := st.preCheck(); err != nil {
+		return nil, err
 	}
 
 	if st.evm.Config.Debug {
@@ -338,26 +330,21 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		rules            = st.evm.ChainConfig().Rules(st.evm.Context.BlockNumber, st.evm.Context.Random != nil)
 		contractCreation = msg.To() == nil
 	)
-
+	snapshot := st.state.Snapshot()
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
 	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, rules.IsHomestead, rules.IsIstanbul)
 	if err != nil {
-		stErr = err
 		return nil, err
 	}
 	if st.gas < gas {
-		stErr = fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gas, gas)
-		return nil, stErr
+		return nil, fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gas, gas)
 	}
 	st.gas -= gas
 
 	// Check clause 6
 	if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, msg.From(), msg.Value()) {
-		stErr = fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
-		return nil, stErr
+		return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
 	}
-	log.Info("st.state.Snapshot()", "snapshot", snapshot)
-
 	// Set up the initial access list.
 	if rules.IsBerlin {
 		st.state.PrepareAccessList(msg.From(), msg.To(), vm.ActivePrecompiles(rules), msg.AccessList())
@@ -366,16 +353,12 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		ret   []byte
 		vmerr error // vm errors do not effect consensus and are therefore not assigned to err
 	)
-	log.Info("dsnapshot", "snapshot", snapshot)
-
 	if contractCreation {
 		ret, _, st.gas, vmerr = st.evm.Create(sender, st.data, st.gas, st.value)
-		stErr = vmerr
 	} else {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
-		ret, st.gas, vmerr = st.evm.SystemCall(sender, st.to(), st.data, st.gas, st.value)
-		stErr = vmerr
+		ret, st.gas, vmerr = st.evm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
 	if !rules.IsLondon {
 		// Before EIP-3529: refunds were capped to gasUsed / 2
@@ -396,8 +379,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	} else {
 		if err := st.checkFee(effectiveTip); err != nil {
 			log.Info("checkFee", "snapshot", snapshot, "err", err)
-			stErr = fmt.Errorf("%w: vmerr %v", ErrSysCall, err)
-			return nil, stErr
+			return nil, fmt.Errorf("%w: vmerr %v", ErrSysCall, err)
 		}
 	}
 
@@ -414,7 +396,7 @@ func (st *StateTransition) checkFee(effectiveTip *big.Int) error {
 	if token, ok := st.getGasToken(); ok {
 		amountMax, _ := new(big.Int).SetString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16)
 		swapData := NewETHSwapData(fee, amountMax, token, st.evm.Context.Coinbase, st.evm.Context.Time)
-		_, _, vmerr := st.evm.SystemCall(vm.AccountRef(st.msg.From()), RouterAddress, swapData, uint64(MaxSwapGas), big.NewInt(0))
+		_, _, vmerr := st.evm.Call(vm.AccountRef(st.msg.From()), RouterAddress, swapData, uint64(MaxSwapGas), big.NewInt(0))
 		return vmerr
 	}
 	st.state.AddBalance(st.evm.Context.Coinbase, fee)

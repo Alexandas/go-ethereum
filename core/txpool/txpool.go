@@ -674,10 +674,6 @@ func (pool *TxPool) validateGasTokenBalance(gasToken common.Address, tx *types.T
 		pool.chainconfig,
 		vm.Config{NoBaseFee: true},
 	)
-	s := pool.currentState.Snapshot()
-	defer func() {
-		pool.currentState.RevertToSnapshot(s)
-	}()
 	have, err := GetTokenBalanceOf(evm, gasToken, from)
 	if err != nil {
 		return fmt.Errorf("%w: get gas token balance failed %v", ErrSysCall, err)
