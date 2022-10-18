@@ -204,7 +204,6 @@ func (st *StateTransition) buyGas() error {
 		balanceCheck = balanceCheck.Mul(balanceCheck, st.gasFeeCap)
 		balanceCheck.Add(balanceCheck, st.value)
 	}
-
 	gasTokenChecked := false
 	if gasToken, ok := st.getGasToken(); ok {
 		if st.gasPrice.Cmp(big.NewInt(0)) == 0 {
@@ -313,10 +312,16 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	// 4. the purchased gas is enough to cover intrinsic usage
 	// 5. there is no overflow when calculating intrinsic gas
 	// 6. caller has enough balance to cover asset transfer for **topmost** call
-
+	snapshot := st.state.Snapshot()
+	var stErr error
+	defer func() {
+		if stErr != nil {
+			st.state.RevertToSnapshot(snapshot)
+		}
+	}()
 	// Check clauses 1-3, buy gas if everything is correct
-	if err := st.preCheck(); err != nil {
-		return nil, err
+	if stErr = st.preCheck(); stErr != nil {
+		return nil, stErr
 	}
 
 	if st.evm.Config.Debug {
@@ -336,18 +341,20 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
 	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, rules.IsHomestead, rules.IsIstanbul)
 	if err != nil {
+		stErr = err
 		return nil, err
 	}
 	if st.gas < gas {
-		return nil, fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gas, gas)
+		stErr = fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gas, gas)
+		return nil, stErr
 	}
 	st.gas -= gas
 
 	// Check clause 6
 	if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, msg.From(), msg.Value()) {
-		return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+		stErr = fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
+		return nil, stErr
 	}
-	snapshot := st.state.Snapshot()
 	log.Info("st.state.Snapshot()", "snapshot", snapshot)
 
 	// Set up the initial access list.
@@ -362,10 +369,12 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 
 	if contractCreation {
 		ret, _, st.gas, vmerr = st.evm.Create(sender, st.data, st.gas, st.value)
+		stErr = vmerr
 	} else {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		ret, st.gas, vmerr = st.evm.SystemCall(sender, st.to(), st.data, st.gas, st.value)
+		stErr = vmerr
 	}
 	if !rules.IsLondon {
 		// Before EIP-3529: refunds were capped to gasUsed / 2
@@ -386,8 +395,8 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	} else {
 		if err := st.checkFee(effectiveTip); err != nil {
 			log.Info("checkFee", "snapshot", snapshot, "err", err)
-			st.state.RevertToSnapshot(snapshot)
-			return nil, fmt.Errorf("%w: vmerr %v", ErrSysCall, err)
+			stErr = fmt.Errorf("%w: vmerr %v", ErrSysCall, err)
+			return nil, stErr
 		}
 	}
 
