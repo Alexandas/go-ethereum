@@ -209,7 +209,7 @@ func (st *StateTransition) buyGas() error {
 		if st.gasPrice.Cmp(big.NewInt(0)) == 0 {
 			gasTokenChecked = true
 		} else {
-			have, err := GetTokenBalanceOf(st.evm, gasToken, st.msg.From())
+			_, err := GetTokenBalanceOf(st.evm, gasToken, st.msg.From())
 			if err != nil {
 				return fmt.Errorf("%w: gas token %v get balance of failed %v", ErrSysCall, gasToken, err)
 			}
