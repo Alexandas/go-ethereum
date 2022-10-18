@@ -912,11 +912,11 @@ func (w *worker) commitTransactions(env *environment, txs *types.TransactionsByP
 		case errors.Is(err, core.ErrInsufficientGasToken):
 			// Insufficient gas token to pay gas
 			log.Info("Insufficient gas token", "sender", from, "nonce", tx.Nonce())
-			txs.Pop()
+			txs.Shift()
 		case errors.Is(err, core.ErrSysCall):
 			// Error on system call
 			log.Info("Call failed for system call", "sender", from, "nonce", tx.Nonce())
-			txs.Pop()
+			txs.Shift()
 
 		case errors.Is(err, core.ErrNonceTooLow):
 			// New head notification data race between the transaction pool and miner, shift
