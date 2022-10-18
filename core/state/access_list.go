@@ -18,7 +18,6 @@ package state
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 type accessList struct {
@@ -89,7 +88,6 @@ func (al *accessList) AddAddress(address common.Address) bool {
 // For any 'true' value returned, a corresponding journal entry must be made.
 func (al *accessList) AddSlot(address common.Address, slot common.Hash) (addrChange bool, slotChange bool) {
 	idx, addrPresent := al.addresses[address]
-	log.Info("AddSlot", "address", address, "idx", idx, "slot", slot, "addrPresent", addrPresent, "al.addresses", al.addresses)
 	if !addrPresent || idx == -1 {
 		// Address not present, or addr present but no slots there
 		al.addresses[address] = len(al.slots)
@@ -114,7 +112,6 @@ func (al *accessList) AddSlot(address common.Address, slot common.Hash) (addrCha
 // operations.
 func (al *accessList) DeleteSlot(address common.Address, slot common.Hash) {
 	idx, addrOk := al.addresses[address]
-	log.Info("DeleteSlot", "address", address, "idx", idx, "slot", slot, "addrOk", addrOk)
 	// There are two ways this can fail
 	if !addrOk {
 		panic("reverting slot change, address not present in list")
