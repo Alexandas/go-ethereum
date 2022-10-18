@@ -27,7 +27,6 @@ func GetGasToken(st State, c *common.Address) (common.Address, bool) {
 
 func GetTokenBalanceOf(evm *vm.EVM, token common.Address, caller common.Address) (*big.Int, error) {
 	balanceOfABI := `[{"constant":true,"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"}]`
-	newEvm := vm.NewEVM(evm.Context, evm.TxContext, evm.StateDB, evm.ChainConfig(), evm.Config)
 	var (
 		balanceOfFunc abi.ABI
 		err           error
@@ -40,7 +39,11 @@ func GetTokenBalanceOf(evm *vm.EVM, token common.Address, caller common.Address)
 	if err != nil {
 		return big.NewInt(0), err
 	}
-	ret, _, err := newEvm.SystemStaticCall(vm.AccountRef(caller), token, input, uint64(MaxBalanceOfGas))
+	snap := evm.StateDB.Snapshot()
+	defer func() {
+		evm.StateDB.RevertToSnapshot(snap)
+	}()
+	ret, _, err := evm.SystemStaticCall(vm.AccountRef(caller), token, input, uint64(MaxBalanceOfGas))
 	if err != nil {
 		return big.NewInt(0), err
 	}
