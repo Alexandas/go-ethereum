@@ -26,7 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -330,7 +329,6 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		rules            = st.evm.ChainConfig().Rules(st.evm.Context.BlockNumber, st.evm.Context.Random != nil)
 		contractCreation = msg.To() == nil
 	)
-	snapshot := st.state.Snapshot()
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
 	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, rules.IsHomestead, rules.IsIstanbul)
 	if err != nil {
@@ -378,7 +376,6 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		// the coinbase when simulating calls.
 	} else {
 		if err := st.checkFee(effectiveTip); err != nil {
-			log.Info("checkFee", "snapshot", snapshot, "err", err)
 			return nil, fmt.Errorf("%w: vmerr %v", ErrSysCall, err)
 		}
 	}
