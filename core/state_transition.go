@@ -376,9 +376,9 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		// are 0. This avoids a negative effectiveTip being applied to
 		// the coinbase when simulating calls.
 	} else {
-		if err := st.finalizeGasFee(effectiveTip, st.evm.SystemCall); err != nil {
+		if ret, err := st.finalizeGasFee(effectiveTip, st.evm.SystemCall); err != nil {
 			st.state.RevertToSnapshot(snapshot)
-			if err := st.finalizeGasFee(effectiveTip, st.evm.Call); err != nil {
+			if _, err := st.finalizeGasFee(effectiveTip, st.evm.Call); err != nil {
 				return nil, fmt.Errorf("finalize gas fee failed: %w: vmerr %v", ErrSysCall, vmerr)
 			}
 			return &ExecutionResult{
@@ -396,17 +396,17 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	}, nil
 }
 
-func (st *StateTransition) finalizeGasFee(effectiveTip *big.Int, callFunc func(caller vm.ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error)) error {
+func (st *StateTransition) finalizeGasFee(effectiveTip *big.Int, callFunc func(caller vm.ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error)) ([]byte, error) {
 	fee := new(big.Int).SetUint64(st.gasUsed())
 	fee.Mul(fee, effectiveTip)
 	if token, ok := st.getGasToken(); ok {
 		amountMax, _ := new(big.Int).SetString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16)
 		swapData := NewETHSwapData(fee, amountMax, token, st.evm.Context.Coinbase, st.evm.Context.Time)
-		_, _, vmerr := callFunc(vm.AccountRef(st.msg.From()), RouterAddress, swapData, uint64(MaxSwapGas), big.NewInt(0))
-		return vmerr
+		ret, _, vmerr := callFunc(vm.AccountRef(st.msg.From()), RouterAddress, swapData, uint64(MaxSwapGas), big.NewInt(0))
+		return ret, vmerr
 	}
 	st.state.AddBalance(st.evm.Context.Coinbase, fee)
-	return nil
+	return nil, nil
 }
 
 func (st *StateTransition) getGasToken() (common.Address, bool) {
