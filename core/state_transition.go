@@ -381,6 +381,11 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 			if err := st.finalizeGasFee(effectiveTip, st.evm.Call); err != nil {
 				return nil, fmt.Errorf("finalize gas fee failed: %w: vmerr %v", ErrSysCall, vmerr)
 			}
+			return &ExecutionResult{
+				UsedGas:    st.gasUsed(),
+				Err:        err,
+				ReturnData: ret,
+			}, nil
 		}
 	}
 
