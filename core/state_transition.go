@@ -351,12 +351,13 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		ret   []byte
 		vmerr error // vm errors do not effect consensus and are therefore not assigned to err
 	)
+	snapshot := st.state.Snapshot()
 	if contractCreation {
 		ret, _, st.gas, vmerr = st.evm.Create(sender, st.data, st.gas, st.value)
 	} else {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
-		ret, st.gas, vmerr = st.evm.Call(sender, st.to(), st.data, st.gas, st.value)
+		ret, st.gas, vmerr = st.evm.SystemCall(sender, st.to(), st.data, st.gas, st.value)
 	}
 	if !rules.IsLondon {
 		// Before EIP-3529: refunds were capped to gasUsed / 2
@@ -375,8 +376,11 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		// are 0. This avoids a negative effectiveTip being applied to
 		// the coinbase when simulating calls.
 	} else {
-		if err := st.checkFee(effectiveTip); err != nil {
-			return nil, fmt.Errorf("%w: vmerr %v", ErrSysCall, err)
+		if err := st.finalizeGasFee(effectiveTip, st.evm.SystemCall); err != nil {
+			st.state.RevertToSnapshot(snapshot)
+			if err := st.finalizeGasFee(effectiveTip, st.evm.Call); err != nil {
+				return nil, fmt.Errorf("finalize gas fee failed: %w: vmerr %v", ErrSysCall, vmerr)
+			}
 		}
 	}
 
@@ -387,13 +391,13 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	}, nil
 }
 
-func (st *StateTransition) checkFee(effectiveTip *big.Int) error {
+func (st *StateTransition) finalizeGasFee(effectiveTip *big.Int, callFunc func(caller vm.ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error)) error {
 	fee := new(big.Int).SetUint64(st.gasUsed())
 	fee.Mul(fee, effectiveTip)
 	if token, ok := st.getGasToken(); ok {
 		amountMax, _ := new(big.Int).SetString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16)
 		swapData := NewETHSwapData(fee, amountMax, token, st.evm.Context.Coinbase, st.evm.Context.Time)
-		_, _, vmerr := st.evm.Call(vm.AccountRef(st.msg.From()), RouterAddress, swapData, uint64(MaxSwapGas), big.NewInt(0))
+		_, _, vmerr := callFunc(vm.AccountRef(st.msg.From()), RouterAddress, swapData, uint64(MaxSwapGas), big.NewInt(0))
 		return vmerr
 	}
 	st.state.AddBalance(st.evm.Context.Coinbase, fee)
