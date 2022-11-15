@@ -168,9 +168,9 @@ var (
 		Category: flags.DevCategory,
 	}
 
-	SwapTestFlag = &cli.BoolFlag{
-		Name:     "swaptestnet",
-		Usage:    "Swap network: pre-configured proof-of-authority test network",
+	HotdogFlag = &cli.BoolFlag{
+		Name:     "hotdog",
+		Usage:    "Hotdog network: pre-configured proof-of-authority test network",
 		Category: flags.EthCategory,
 	}
 
@@ -1020,7 +1020,7 @@ var (
 		GoerliFlag,
 		SepoliaFlag,
 		KilnFlag,
-		SwapTestFlag,
+		HotdogFlag,
 	}
 	// NetworkFlags is the flag group of all built-in supported networks.
 	NetworkFlags = append([]cli.Flag{MainnetFlag}, TestnetFlags...)
@@ -1056,8 +1056,8 @@ func MakeDataDir(ctx *cli.Context) string {
 		if ctx.Bool(KilnFlag.Name) {
 			return filepath.Join(path, "kiln")
 		}
-		if ctx.Bool(SwapTestFlag.Name) {
-			return filepath.Join(path, "swap-testnet")
+		if ctx.Bool(HotdogFlag.Name) {
+			return filepath.Join(path, "hotdog")
 		}
 		return path
 	}
@@ -1569,8 +1569,8 @@ func SetDataDir(ctx *cli.Context, cfg *node.Config) {
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "rinkeby")
 	case ctx.Bool(GoerliFlag.Name) && cfg.DataDir == node.DefaultDataDir():
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "goerli")
-	case ctx.Bool(SwapTestFlag.Name) && cfg.DataDir == node.DefaultDataDir():
-		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "swap-testnet")
+	case ctx.Bool(HotdogFlag.Name) && cfg.DataDir == node.DefaultDataDir():
+		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "hotdog")
 	case ctx.Bool(SepoliaFlag.Name) && cfg.DataDir == node.DefaultDataDir():
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "sepolia")
 	case ctx.Bool(KilnFlag.Name) && cfg.DataDir == node.DefaultDataDir():
@@ -1765,7 +1765,7 @@ func CheckExclusive(ctx *cli.Context, args ...interface{}) {
 // SetEthConfig applies eth-related command line flags to the config.
 func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	// Avoid conflicting network flags
-	CheckExclusive(ctx, MainnetFlag, DeveloperFlag, RopstenFlag, RinkebyFlag, GoerliFlag, SwapTestFlag, SepoliaFlag, KilnFlag)
+	CheckExclusive(ctx, MainnetFlag, DeveloperFlag, RopstenFlag, RinkebyFlag, GoerliFlag, HotdogFlag, SepoliaFlag, KilnFlag)
 	CheckExclusive(ctx, LightServeFlag, SyncModeFlag, "light")
 	CheckExclusive(ctx, DeveloperFlag, ExternalSignerFlag) // Can't use both ephemeral unlocked and external signer
 	if ctx.String(GCModeFlag.Name) == "archive" && ctx.Uint64(TxLookupLimitFlag.Name) != 0 {
@@ -1959,11 +1959,11 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		}
 		cfg.Genesis = core.DefaultGoerliGenesisBlock()
 		SetDNSDiscoveryDefaults(cfg, params.GoerliGenesisHash)
-	case ctx.Bool(SwapTestFlag.Name):
+	case ctx.Bool(HotdogFlag.Name):
 		if !ctx.IsSet(NetworkIdFlag.Name) {
 			cfg.NetworkId = 1130
 		}
-		cfg.Genesis = core.DefaulSwapDevGenesisBlock()
+		cfg.Genesis = core.DefaultHGGenesisBlock()
 		SetDNSDiscoveryDefaults(cfg, params.SwapTestnetGenesisHash)
 	case ctx.Bool(KilnFlag.Name):
 		if !ctx.IsSet(NetworkIdFlag.Name) {
@@ -2265,8 +2265,8 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 		genesis = core.DefaultRinkebyGenesisBlock()
 	case ctx.Bool(GoerliFlag.Name):
 		genesis = core.DefaultGoerliGenesisBlock()
-	case ctx.Bool(SwapTestFlag.Name):
-		genesis = core.DefaulSwapDevGenesisBlock()
+	case ctx.Bool(HotdogFlag.Name):
+		genesis = core.DefaultHGGenesisBlock()
 	case ctx.Bool(KilnFlag.Name):
 		genesis = core.DefaultKilnGenesisBlock()
 	case ctx.Bool(DeveloperFlag.Name):
