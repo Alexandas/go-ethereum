@@ -663,7 +663,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 }
 
 func (pool *TxPool) validateGasTokenBalance(gasToken common.Address, tx *types.Transaction, from common.Address) error {
-	blkCtx := NewEVMBlockContext(pool.chain.CurrentBlock().Header(), pool.chain.(*BlockChain), nil)
+	blkCtx := core.NewEVMBlockContext(pool.chain.CurrentBlock().Header(), pool.chain.(*core.BlockChain), nil)
 	evm := vm.NewEVM(
 		blkCtx,
 		vm.TxContext{
@@ -674,16 +674,16 @@ func (pool *TxPool) validateGasTokenBalance(gasToken common.Address, tx *types.T
 		pool.chainconfig,
 		vm.Config{NoBaseFee: true},
 	)
-	have, err := GetTokenBalanceOf(evm, gasToken, from)
+	have, err := core.GetTokenBalanceOf(evm, gasToken, from)
 	if err != nil {
-		return fmt.Errorf("%w: get gas token balance failed %v", ErrSysCall, err)
+		return fmt.Errorf("%w: get gas token balance failed %v", core.ErrSysCall, err)
 	}
-	want, err := GetAmountsIn(evm, gasToken, from, tx.Cost())
+	want, err := core.GetAmountsIn(evm, gasToken, from, tx.Cost())
 	if err != nil {
-		return fmt.Errorf("%w: get amount in failed %v", ErrSysCall, err)
+		return fmt.Errorf("%w: get amount in failed %v", core.ErrSysCall, err)
 	}
 	if have.Cmp(want) < 0 {
-		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientGasToken, from, have, want)
+		return fmt.Errorf("%w: address %v have %v want %v", core.ErrInsufficientGasToken, from, have, want)
 	}
 	return nil
 }
