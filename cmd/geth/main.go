@@ -290,8 +290,8 @@ func prepare(ctx *cli.Context) {
 	case ctx.IsSet(utils.KilnFlag.Name):
 		log.Info("Starting Geth on Kiln testnet...")
 
-	case ctx.IsSet(utils.HotdogFlag.Name):
-		log.Info("Starting Geth on Hotdog mainnet...")
+	case ctx.IsSet(utils.NuaFlag.Name):
+		log.Info("Starting Geth on Nua mainnet...")
 
 	case ctx.IsSet(utils.DeveloperFlag.Name):
 		log.Info("Starting Geth in ephemeral dev mode...")
